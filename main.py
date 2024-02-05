@@ -16,10 +16,10 @@ class BiliBili:
             rid:
         """
         rid = rid
-        self.header = {
+        self.header = {  # 要获取原画请填写cookie
             'User-Agent': 'Mozilla/5.0 (iPod; CPU iPhone OS 14_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, '
                           'like Gecko) CriOS/87.0.4280.163 Mobile/15E148 Safari/604.1',
-            'Cookie': '''要获取原画请填写cookie'''
+            'Cookie': f''
         }
         # 先获取直播状态和真实房间号
         r_url = 'https://api.live.bilibili.com/room/v1/Room/room_init'
@@ -97,4 +97,3 @@ if __name__ == '__main__':
         exit()
     url = 'potplayer://{}'.format(stream['线路{}'.format(str(choose))])
     webbrowser.open(url)
-
