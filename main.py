@@ -90,11 +90,11 @@ if __name__ == '__main__':
     print('一共有{}个源'.format(len(stream)))
     # print(stream)
     choose = input('请问要选哪个，默认第一个')
+    if choose == '':
+        choose = 1
     if int(choose) > len(stream) or int(choose) <= 0:
         print('请重新选择')
         exit()
-    if choose == '':
-        choose = 1
     url = 'potplayer://{}'.format(stream['线路{}'.format(str(choose))])
     webbrowser.open(url)
 
