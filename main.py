@@ -3,6 +3,8 @@
 # qn=250超清
 # qn=400蓝光
 # qn=10000原画
+from typing import Union
+
 import requests
 import webbrowser
 import os
@@ -20,7 +22,7 @@ class BiliBili:
         self.header = {  # 要获取原画请自行填写cookie
             'User-Agent': 'Mozilla/5.0 (iPod; CPU iPhone OS 14_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, '
                           'like Gecko) CriOS/87.0.4280.163 Mobile/15E148 Safari/604.1',
-            'Cookie': temp_file('cookie.txt')
+            'Cookie': FileManager.temp_file('cookie.txt')
         }
         # 先获取直播状态和真实房间号
         r_url = 'https://api.live.bilibili.com/room/v1/Room/room_init'
@@ -75,19 +77,37 @@ class BiliBili:
         return stream_urls
 
 
-def temp_file(file):
-    if not os.path.exists(file):
-        print('没有检测到cookie文件,已经自动创建，画质将受到影响。')
-        with open(file, 'w') as f:
-            f.write('')
-    with open(file, 'r', encoding='utf-8') as fp:
-        cookie = fp.read()
-        if cookie == '':
-            print('cookie文件为空，画质将受到影响。')
-        return cookie
+class FileManager:
+    def __init__(self, *args, **kwargs):
+        raise TypeError('Banned Instantiate')
+
+    @staticmethod
+    def temp_file(cookie_file):
+        if not os.path.exists(cookie_file):
+            print('没有检测到cookie文件,已经自动创建，画质将受到影响。')
+            with open(cookie_file, 'w') as f:
+                f.write('')
+        with open(cookie_file, 'r', encoding='utf-8') as fp:
+            cookie = fp.read()
+            if cookie == '':
+                print('cookie文件为空，画质将受到影响。')
+            return cookie
+
+    @staticmethod
+    def room_list(room_file):
+        lines = []
+        if not os.path.exists(room_file):
+            with open(room_file, 'w', encoding='utf-8') as fp:
+                fp.write('')
+                return ''
+        else:
+            with open(room_file, 'r', encoding='utf-8') as fp:
+                for line in fp.readlines():
+                    lines.append(line.strip())
+                return lines
 
 
-def get_real_url(rid):
+def get_real_url(rid: str):
     try:
         bilibili = BiliBili(rid)
         return bilibili.get_real_url()
@@ -96,23 +116,45 @@ def get_real_url(rid):
         return False
 
 
-if __name__ == '__main__':      # 以后再整房间号保存和快速读取，说不定会搞个GUI。弹幕暂时不想研究，太难了。
-    re_choose = True
-    while re_choose:
-        re_choose = False
-        r = input('请输入bilibili直播房间号：\n')
-        stream = get_real_url(r)
-        if stream:
-            print(f'一共有{len(stream)}个源')
-            # print(stream)
-            choose = input('请问要选哪个，默认第一个')
-            if choose == '':
-                choose = 1
-            if int(choose) > len(stream) or int(choose) <= 0:
-                print('请重新选择')
-                re_choose =True
-        else:
+def open_potplayer(room_id: str) -> Union[bool, str]:
+    stream = get_real_url(room_id)
+    if stream:
+        print(f'一共有{len(stream)}个源')
+        choose = input('请问要选哪个，默认第一个')
+        if choose == '':
+            choose = 1
+        if int(choose) > len(stream) or int(choose) <= 0:
             print('请重新选择')
-            re_choose = True
-    url = 'potplayer://{}'.format(stream['线路{}'.format(str(choose))])
-    webbrowser.open(url)
+            return False
+    else:
+        print('请重新选择')
+        return False
+    webbrowser.open('potplayer://{}'.format(stream['线路{}'.format(str(choose))]))
+    return True
+
+
+class MainFunction:
+    def __init__(self, func: str):
+        if int(func) == 1:
+            self.enter_id()
+        elif int(func) == 2:
+            self.exist_id()
+
+    def enter_id(self):
+        re_choose = True
+        while re_choose:
+            re_choose = False
+            r = input('请输入bilibili房间号:')
+            status = open_potplayer(r)
+            if not status:
+                re_choose = True
+
+    def exist_id(self):
+        room_list = FileManager.room_list('room.txt')
+        print(room_list)
+
+
+if __name__ == '__main__':  # 以后再整房间号保存和快速读取，说不定会搞个GUI。弹幕暂时不想研究，太难了。
+    select_f = input()
+    func = MainFunction(select_f)
+
