@@ -19,7 +19,7 @@ class BiliBili:
         self.header = {  # 要获取原画请填写cookie
             'User-Agent': 'Mozilla/5.0 (iPod; CPU iPhone OS 14_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, '
                           'like Gecko) CriOS/87.0.4280.163 Mobile/15E148 Safari/604.1',
-            'Cookie': f''
+            'Cookie': temp_file('cookie.txt')
         }
         # 先获取直播状态和真实房间号
         r_url = 'https://api.live.bilibili.com/room/v1/Room/room_init'
@@ -72,6 +72,11 @@ class BiliBili:
                     stream_urls[f'线路{i + 1}'] = f'{host}{base_url}{extra}'
                 break
         return stream_urls
+
+
+def temp_file(file):
+    with open(file, 'r', encoding='utf-8') as fp:
+        return fp.read()
 
 
 def get_real_url(rid):
