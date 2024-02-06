@@ -5,6 +5,7 @@
 # qn=10000原画
 import requests
 import webbrowser
+import os
 
 
 class BiliBili:
@@ -75,6 +76,9 @@ class BiliBili:
 
 
 def temp_file(file):
+    if not os.path.exists(file):
+        with open(file, 'w') as f:
+            f.write('')
     with open(file, 'r', encoding='utf-8') as fp:
         return fp.read()
 
