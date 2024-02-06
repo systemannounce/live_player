@@ -16,7 +16,7 @@ class BiliBili:
             rid:
         """
         rid = rid
-        self.header = {  # 要获取原画请填写cookie
+        self.header = {  # 要获取原画请自行填写cookie
             'User-Agent': 'Mozilla/5.0 (iPod; CPU iPhone OS 14_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, '
                           'like Gecko) CriOS/87.0.4280.163 Mobile/15E148 Safari/604.1',
             'Cookie': temp_file('cookie.txt')
@@ -85,20 +85,26 @@ def get_real_url(rid):
         return bilibili.get_real_url()
     except Exception as e:
         print('Exception：', e)
-        exit()
         return False
 
 
-if __name__ == '__main__':
-    r = input('请输入bilibili直播房间号：\n')
-    stream = get_real_url(r)
-    print('一共有{}个源'.format(len(stream)))
-    # print(stream)
-    choose = input('请问要选哪个，默认第一个')
-    if choose == '':
-        choose = 1
-    if int(choose) > len(stream) or int(choose) <= 0:
-        print('请重新选择')
-        exit()
+if __name__ == '__main__':      # 以后再整房间号保存和快速读取，说不定会搞个GUI。弹幕暂时不想研究，太难了。
+    re_choose = True
+    while re_choose:
+        re_choose = False
+        r = input('请输入bilibili直播房间号：\n')
+        stream = get_real_url(r)
+        if stream:
+            print(f'一共有{len(stream)}个源')
+            # print(stream)
+            choose = input('请问要选哪个，默认第一个')
+            if choose == '':
+                choose = 1
+            if int(choose) > len(stream) or int(choose) <= 0:
+                print('请重新选择')
+                re_choose =True
+        else:
+            print('请重新选择')
+            re_choose = True
     url = 'potplayer://{}'.format(stream['线路{}'.format(str(choose))])
     webbrowser.open(url)
