@@ -77,10 +77,14 @@ class BiliBili:
 
 def temp_file(file):
     if not os.path.exists(file):
+        print('没有检测到cookie文件,已经自动创建，画质将受到影响。')
         with open(file, 'w') as f:
             f.write('')
     with open(file, 'r', encoding='utf-8') as fp:
-        return fp.read()
+        cookie = fp.read()
+        if cookie == '':
+            print('cookie文件为空，画质将受到影响。')
+        return cookie
 
 
 def get_real_url(rid):
