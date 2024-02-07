@@ -4,7 +4,6 @@
 # qn=400蓝光
 # qn=10000原画
 from typing import Union
-
 import requests
 import webbrowser
 import os
@@ -95,15 +94,29 @@ class FileManager:
 
     @staticmethod
     def room_list(room_file):
-        lines = []
+        lines = {}
         if not os.path.exists(room_file):
             with open(room_file, 'w', encoding='utf-8') as fp:
-                fp.write('')
+                fp.write('格式要求：\n')
+                fp.write('注释:房间号\n')
+                fp.write('如果要进行修改请将本文件所有内容删除干净后再填写。确保自己已经知晓上面的填写方法\n')
                 return ''
         else:
+            empty_line = 0
             with open(room_file, 'r', encoding='utf-8') as fp:
-                for line in fp.readlines():
-                    lines.append(line.strip())
+                fp_lines = fp.readlines()
+                for line in fp_lines:
+                    if line == '\n':
+                        empty_line = empty_line + 1
+                        continue
+                    try:
+                        temp_line = line.split(':')
+                        lines[temp_line[0].strip()] = temp_line[1].strip()
+                    except IndexError:
+                        # print('未检测到有效列表')
+                        pass
+                if len(lines) < len(fp_lines) - empty_line:
+                    print('\033[%s;40mroom.txt 文件内存在错误，请检查是否按照规则填写。\033[0m' % 34)
                 return lines
 
 
@@ -112,11 +125,11 @@ def get_real_url(rid: str):
         bilibili = BiliBili(rid)
         return bilibili.get_real_url()
     except Exception as e:
-        print('Exception：', e)
+        print('\033[%s;40mException: \033[0m' % 31, e)
         return False
 
 
-def open_potplayer(room_id: str) -> Union[bool, str]:
+def open_potplayer(room_id: str) -> Union[bool]:
     stream = get_real_url(room_id)
     if stream:
         print(f'一共有{len(stream)}个源')
@@ -124,17 +137,17 @@ def open_potplayer(room_id: str) -> Union[bool, str]:
         if choose == '':
             choose = 1
         if int(choose) > len(stream) or int(choose) <= 0:
-            print('请重新选择')
+            print('\033[47;%sm请重新选择\033[0m' % 42)
             return False
     else:
-        print('请重新选择')
+        print('\033[47;%sm请重新选择\033[0m' % 42)
         return False
     webbrowser.open('potplayer://{}'.format(stream['线路{}'.format(str(choose))]))
     return True
 
 
 class MainFunction:
-    def __init__(self, func: str):
+    def __init__(self, func: int) -> None:
         if int(func) == 1:
             self.enter_id()
         elif int(func) == 2:
@@ -150,11 +163,25 @@ class MainFunction:
                 re_choose = True
 
     def exist_id(self):
-        room_list = FileManager.room_list('room.txt')
-        print(room_list)
+        re_choose = True
+        status = None
+        while re_choose:
+            re_choose = False
+            room_list = FileManager.room_list('room.txt')
+            print('序号  备注  房间号')
+            print('-----------------')
+            for num, room in enumerate(room_list):
+                num = 'No.{}'.format(num)
+                print(num, room, room_list[room])
+            room_num = input('请输入序号加入房间: ')
+            try:
+                status = open_potplayer(list(room_list.values())[int(room_num)])
+            except IndexError:
+                print('\033[%s;40m序号不存在\033[0m' % 31)
+            if not status:
+                re_choose = True
 
 
-if __name__ == '__main__':  # 以后再整房间号保存和快速读取，说不定会搞个GUI。弹幕暂时不想研究，太难了。
-    select_f = input()
-    func = MainFunction(select_f)
-
+if __name__ == '__main__':
+    select_f = input('1. 直接输入房间号\n2. 读取room.txt文件')
+    func = MainFunction(int(select_f))
