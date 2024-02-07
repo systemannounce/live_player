@@ -147,11 +147,15 @@ def open_potplayer(room_id: str) -> Union[bool]:
 
 
 class MainFunction:
-    def __init__(self, func: int) -> None:
-        if int(func) == 1:
-            self.enter_id()
-        elif int(func) == 2:
-            self.exist_id()
+    def __init__(self) -> None:
+        func_status = None
+        while not func_status:
+            func = input('1. 直接输入房间号\n2. 读取room.txt文件')
+            if int(func) == 1:
+                func_status = self.enter_id()
+            elif int(func) == 2:
+                func_status = self.exist_id()
+
 
     def enter_id(self):
         re_choose = True
@@ -161,6 +165,7 @@ class MainFunction:
             status = open_potplayer(r)
             if not status:
                 re_choose = True
+        return True
 
     def exist_id(self):
         re_choose = True
@@ -178,10 +183,13 @@ class MainFunction:
                 status = open_potplayer(list(room_list.values())[int(room_num)])
             except IndexError:
                 print('\033[%s;40m序号不存在\033[0m' % 31)
+            except AttributeError:
+                print('\033[%s;40m文件里面还没有内容，请重新选择\033[0m' % 31)
+                return False
             if not status:
                 re_choose = True
+        return True
 
 
 if __name__ == '__main__':
-    select_f = input('1. 直接输入房间号\n2. 读取room.txt文件')
-    func = MainFunction(int(select_f))
+        func = MainFunction()
