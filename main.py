@@ -116,7 +116,7 @@ class FileManager:
                         # print('未检测到有效列表')
                         pass
                 if len(lines) < len(fp_lines) - empty_line:
-                    print('\033[%s;40mroom.txt 文件内存在错误，请检查是否按照规则填写。\033[0m' % 34)
+                    print('\033[%s;40mroom.txt 文件内存在错误，请检查是否按照规则填写。\033[0m' % 33)
                 return lines
 
 
