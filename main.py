@@ -133,7 +133,9 @@ def open_potplayer(room_id: str) -> Union[bool]:
     stream = get_real_url(room_id)
     if stream:
         print(f'一共有{len(stream)}个源')
-        choose = input('请问要选哪个，默认第一个')
+        choose = input('请问要选哪个，默认第一个(输入q返回上一级): ')
+        if choose == 'q' or choose == 'Q':
+            return False
         if choose == '':
             choose = 1
         if int(choose) > len(stream) or int(choose) <= 0:
@@ -150,11 +152,14 @@ class MainFunction:
     def __init__(self) -> None:
         func_status = None
         while not func_status:
-            func = input('1. 直接输入房间号\n2. 读取room.txt文件')
-            if int(func) == 1:
-                func_status = self.enter_id()
-            elif int(func) == 2:
-                func_status = self.exist_id()
+            func = input('1. 直接输入房间号\n2. 读取room.txt文件\n')
+            try:
+                if int(func) == 1:
+                    func_status = self.enter_id()
+                elif int(func) == 2:
+                    func_status = self.exist_id()
+            except ValueError:
+                print('\033[%s;40m请输入数字！\033[0m' % 33)
 
 
     def enter_id(self):
@@ -178,7 +183,9 @@ class MainFunction:
             for num, room in enumerate(room_list):
                 num = 'No.{}'.format(num)
                 print(num, room, room_list[room])
-            room_num = input('请输入序号加入房间: ')
+            room_num = input('请输入序号加入房间(输入q返回上一级): ')
+            if room_num == 'q' or room_num == 'Q':
+                return False
             try:
                 status = open_potplayer(list(room_list.values())[int(room_num)])
             except IndexError:
@@ -186,6 +193,8 @@ class MainFunction:
             except AttributeError:
                 print('\033[%s;40m文件里面还没有内容，请重新选择\033[0m' % 31)
                 return False
+            except ValueError:
+                print('\033[%s;40m请输入数字！\033[0m' % 33)
             if not status:
                 re_choose = True
         return True
