@@ -100,7 +100,7 @@ class FileManager:
                 fp.write('格式要求：\n')
                 fp.write('注释:房间号\n')
                 fp.write('如果要进行修改请将本文件所有内容删除干净后再填写。确保自己已经知晓上面的填写方法\n')
-                return ''
+                return {}
         else:
             empty_line = 0
             with open(room_file, 'r', encoding='utf-8') as fp:
@@ -120,12 +120,89 @@ class FileManager:
                 return lines
 
 
+class MainFunction:
+    def __init__(self) -> None:
+        self.func_status = None
+        while not self.func_status:
+            func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态\n')
+            try:
+                if int(func) == 1:
+                    self.func_status = self.enter_id()
+                elif int(func) == 2:
+                    self.func_status = self.exist_id()
+                elif int(func) == 3:
+                    self.func_status = self.check_status()
+            except ValueError:
+                print('\033[%s;40m请输入数字！\033[0m' % 33)
+
+    def enter_id(self) -> bool:
+        self.re_choose = True
+        self.status = None
+        while self.re_choose:
+            self.re_choose = False
+            r = input('请输入bilibili房间号(输入q返回上一级):')
+            if r == 'q' or r == 'Q':
+                return False
+            self.status = open_potplayer(r)
+            if not self.status:
+                self.re_choose = True
+        return True
+
+    def exist_id(self) -> bool:
+        self.re_choose = True
+        self.status = None
+        while self.re_choose:
+            self.re_choose = False
+            self.room_list = FileManager.room_list('room.txt')
+            print('序号  备注  房间号')
+            print('-----------------')
+            for num, room in enumerate(self.room_list):
+                num = 'No.{}'.format(num)
+                print(num, room, self.room_list[room])
+            room_num = input('请输入序号加入房间(输入q返回上一级): ')
+            if room_num == 'q' or room_num == 'Q':
+                return False
+            try:
+                self.status = open_potplayer(list(self.room_list.values())[int(room_num)])
+            except IndexError:
+                print('\033[%s;40m序号不存在\033[0m' % 31)
+            except AttributeError:
+                print('\033[%s;40m文件里面还没有内容，请重新选择\033[0m' % 31)
+                return False
+            except ValueError:
+                print('\033[%s;40m请输入数字！\033[0m' % 33)
+            if not self.status:
+                self.re_choose = True
+        return True
+
+    def check_status(self):
+        self.room_list = FileManager.room_list('room.txt')
+        print('序号  备注  房间号  状态')
+        print('-----------------------')
+        for num, room in enumerate(self.room_list):
+            num = 'No.{}'.format(num)
+            try:
+                bilibili = BiliBili(self.room_list[room])
+                self.room_status = '已开播'
+            except Exception as e:
+                # print('\033[%s;40mException: \033[0m' % 31, e)
+                if '未开播' in str(e):
+                    self.room_status = '未开播'
+                elif '不存在' in str(e):
+                    self.room_status = '不存在'
+            print(num, room, self.room_list[room], self.room_status,)
+        print('\n')
+        return False
+
+
 def get_real_url(rid: str):
     try:
         bilibili = BiliBili(rid)
         return bilibili.get_real_url()
     except Exception as e:
-        print('\033[%s;40mException: \033[0m' % 31, e)
+        # print('\033[%s;40mException: \033[0m' % 31, e)
+        if '未开播' in e:
+            pass
         return False
 
 
@@ -148,57 +225,5 @@ def open_potplayer(room_id: str) -> Union[bool]:
     return True
 
 
-class MainFunction:
-    def __init__(self) -> None:
-        func_status = None
-        while not func_status:
-            func = input('1. 直接输入房间号\n2. 读取room.txt文件\n')
-            try:
-                if int(func) == 1:
-                    func_status = self.enter_id()
-                elif int(func) == 2:
-                    func_status = self.exist_id()
-            except ValueError:
-                print('\033[%s;40m请输入数字！\033[0m' % 33)
-
-
-    def enter_id(self):
-        re_choose = True
-        while re_choose:
-            re_choose = False
-            r = input('请输入bilibili房间号:')
-            status = open_potplayer(r)
-            if not status:
-                re_choose = True
-        return True
-
-    def exist_id(self):
-        re_choose = True
-        status = None
-        while re_choose:
-            re_choose = False
-            room_list = FileManager.room_list('room.txt')
-            print('序号  备注  房间号')
-            print('-----------------')
-            for num, room in enumerate(room_list):
-                num = 'No.{}'.format(num)
-                print(num, room, room_list[room])
-            room_num = input('请输入序号加入房间(输入q返回上一级): ')
-            if room_num == 'q' or room_num == 'Q':
-                return False
-            try:
-                status = open_potplayer(list(room_list.values())[int(room_num)])
-            except IndexError:
-                print('\033[%s;40m序号不存在\033[0m' % 31)
-            except AttributeError:
-                print('\033[%s;40m文件里面还没有内容，请重新选择\033[0m' % 31)
-                return False
-            except ValueError:
-                print('\033[%s;40m请输入数字！\033[0m' % 33)
-            if not status:
-                re_choose = True
-        return True
-
-
 if __name__ == '__main__':
-        func = MainFunction()
+    func = MainFunction()
