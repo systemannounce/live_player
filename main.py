@@ -84,13 +84,13 @@ class FileManager:
     @staticmethod
     def temp_file(cookie_file):
         if not os.path.exists(cookie_file):
-            print('没有检测到cookie文件,已经自动创建，画质将受到影响。')
+            print('\033[%s;40m没有检测到cookie文件,已经自动创建，画质将受到影响。\033[0m' % 33)
             with open(cookie_file, 'w') as f:
                 f.write('')
         with open(cookie_file, 'r', encoding='utf-8') as fp:
             cookie = fp.read()
             if cookie == '':
-                print('cookie文件为空，画质将受到影响。')
+                print('\033[%s;40mcookie文件为空，画质将受到影响。\033[0m' % 33)
             return cookie
 
     @staticmethod
@@ -123,6 +123,10 @@ class FileManager:
 
 class MainFunction:
     def __init__(self) -> None:
+        if os.name == 'nt':
+            self.clear_command = "cls"
+        else:
+            self.clear_command = "clear"
         self.func_status = None
         self.qn = 10000
         while not self.func_status:
@@ -134,7 +138,8 @@ class MainFunction:
                 self.resolution_str = '蓝光'
             elif self.qn == 10000:
                 self.resolution_str = '原画'
-            func = input(f'1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态\n4. 更改清晰度(当前{self.resolution_str})\n')
+            func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态\n'
+                         f'4. 更改清晰度(当前{self.resolution_str})\n5. 清屏\n6. 毁灭吧世界！\n:')
             try:
                 if int(func) == 1:
                     self.func_status = self.enter_id()
@@ -144,6 +149,10 @@ class MainFunction:
                     self.func_status = self.check_status()
                 elif int(func) == 4:
                     self.func_status = self.change_bit()
+                elif int(func) == 5:
+                    os.system(self.clear_command)
+                elif int(func) == 6:
+                    exit()
             except ValueError:
                 print('\033[%s;40m请输入数字！\033[0m' % 33)
 
@@ -151,6 +160,7 @@ class MainFunction:
     def enter_id(self) -> bool:
         self.re_choose = True
         self.status = None
+        os.system(self.clear_command)
         while self.re_choose:
             self.re_choose = False
             r = input('请输入bilibili房间号(输入q返回上一级):')
@@ -164,6 +174,7 @@ class MainFunction:
     def exist_id(self, *args) -> bool:
         self.re_choose = True
         self.status = None
+        os.system(self.clear_command)
         while self.re_choose:
             self.re_choose = False
             self.room_list = FileManager.room_list('room.txt')
@@ -208,7 +219,7 @@ class MainFunction:
         print('\n')
         return False
     def change_bit(self):
-        self.resolution = input('1. 高清\n2. 超清\n3. 蓝光\n4. 原画\n')
+        self.resolution = input('1. 高清\n2. 超清\n3. 蓝光\n4. 原画\n:')
         if self.resolution == '1':
             self.qn = 150
         if self.resolution == '2':
