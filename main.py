@@ -11,13 +11,14 @@ import os
 
 class BiliBili:
 
-    def __init__(self, rid):
+    def __init__(self, rid, o_qn):
         """
         有些地址无法在PotPlayer播放，建议换个播放器试试
         Args:
             rid:
         """
         rid = rid
+        self.current_qn = o_qn
         self.header = {  # 要获取原画请自行填写cookie
             'User-Agent': 'Mozilla/5.0 (iPod; CPU iPhone OS 14_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, '
                           'like Gecko) CriOS/87.0.4280.163 Mobile/15E148 Safari/604.1',
@@ -37,14 +38,14 @@ class BiliBili:
             raise Exception(f'bilibili {rid} 未开播')
         self.real_room_id = res['data']['room_id']
 
-    def get_real_url(self, current_qn: int = 10000) -> dict:
+    def get_real_url(self) -> dict:
         url = 'https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo'
         param = {
             'room_id': self.real_room_id,
             'protocol': '0,1',
             'format': '0,1,2',
             'codec': '0,1',
-            'qn': current_qn,
+            'qn': self.current_qn,
             'platform': 'h5',
             'ptype': 8,
         }
@@ -56,8 +57,8 @@ class BiliBili:
             accept_qn = data['format'][0]['codec'][0]['accept_qn']
             for qn in accept_qn:
                 qn_max = qn if qn > qn_max else qn_max
-        if qn_max != current_qn:
-            param['qn'] = qn_max
+        if qn_max != self.current_qn:
+            param['qn'] = self.current_qn
             res = self.s.get(url, headers=self.header, params=param).json()
             stream_info = res['data']['playurl_info']['playurl']['stream']
 
@@ -123,8 +124,17 @@ class FileManager:
 class MainFunction:
     def __init__(self) -> None:
         self.func_status = None
+        self.qn = 10000
         while not self.func_status:
-            func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态\n')
+            if self.qn == 150:
+                self.resolution_str = '高清'
+            elif self.qn == 250:
+                self.resolution_str = '超清'
+            elif self.qn == 400:
+                self.resolution_str = '蓝光'
+            elif self.qn == 10000:
+                self.resolution_str = '原画'
+            func = input(f'1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态\n4. 更改清晰度(当前{self.resolution_str})\n')
             try:
                 if int(func) == 1:
                     self.func_status = self.enter_id()
@@ -132,8 +142,11 @@ class MainFunction:
                     self.func_status = self.exist_id()
                 elif int(func) == 3:
                     self.func_status = self.check_status()
+                elif int(func) == 4:
+                    self.func_status = self.change_bit()
             except ValueError:
                 print('\033[%s;40m请输入数字！\033[0m' % 33)
+
 
     def enter_id(self) -> bool:
         self.re_choose = True
@@ -143,27 +156,28 @@ class MainFunction:
             r = input('请输入bilibili房间号(输入q返回上一级):')
             if r == 'q' or r == 'Q':
                 return False
-            self.status = open_potplayer(r)
+            self.status = open_potplayer(r, self.qn)
             if not self.status:
                 self.re_choose = True
         return True
 
-    def exist_id(self) -> bool:
+    def exist_id(self, *args) -> bool:
         self.re_choose = True
         self.status = None
         while self.re_choose:
             self.re_choose = False
             self.room_list = FileManager.room_list('room.txt')
-            print('序号  备注  房间号')
-            print('-----------------')
-            for num, room in enumerate(self.room_list):
-                num = 'No.{}'.format(num)
-                print(num, room, self.room_list[room])
+            # print('序号  备注  房间号')
+            # print('-----------------')
+            # for num, room in enumerate(self.room_list):
+            #     num = 'No.{}'.format(num)
+            #     print(num, room, self.room_list[room])
+            self.check_status()
             room_num = input('请输入序号加入房间(输入q返回上一级): ')
             if room_num == 'q' or room_num == 'Q':
                 return False
             try:
-                self.status = open_potplayer(list(self.room_list.values())[int(room_num)])
+                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], self.qn)
             except IndexError:
                 print('\033[%s;40m序号不存在\033[0m' % 31)
             except AttributeError:
@@ -182,7 +196,7 @@ class MainFunction:
         for num, room in enumerate(self.room_list):
             num = 'No.{}'.format(num)
             try:
-                bilibili = BiliBili(self.room_list[room])
+                bilibili = BiliBili(self.room_list[room], self.qn)
                 self.room_status = '已开播'
             except Exception as e:
                 # print('\033[%s;40mException: \033[0m' % 31, e)
@@ -190,24 +204,33 @@ class MainFunction:
                     self.room_status = '未开播'
                 elif '不存在' in str(e):
                     self.room_status = '不存在'
-            print(num, room, self.room_list[room], self.room_status,)
+            print(num, room, self.room_list[room], self.room_status)
         print('\n')
         return False
-
-
-def get_real_url(rid: str):
-    try:
-        bilibili = BiliBili(rid)
-        return bilibili.get_real_url()
-    except Exception as e:
-        # print('\033[%s;40mException: \033[0m' % 31, e)
-        if '未开播' in e:
-            pass
+    def change_bit(self):
+        self.resolution = input('1. 高清\n2. 超清\n3. 蓝光\n4. 原画\n')
+        if self.resolution == '1':
+            self.qn = 150
+        if self.resolution == '2':
+            self.qn = 250
+        if self.resolution == '3':
+            self.qn = 400
+        if self.resolution == '4':
+            self.qn = 10000
         return False
 
 
-def open_potplayer(room_id: str) -> Union[bool]:
-    stream = get_real_url(room_id)
+def get_real_url(rid: str, qn):
+    try:
+        bilibili = BiliBili(rid, qn)
+        return bilibili.get_real_url()
+    except Exception as e:
+        print('\033[%s;40mException: \033[0m' % 31, e)
+        return False
+
+
+def open_potplayer(room_id: str, qn) -> Union[bool]:
+    stream = get_real_url(room_id, qn)
     if stream:
         print(f'一共有{len(stream)}个源')
         choose = input('请问要选哪个，默认第一个(输入q返回上一级): ')
