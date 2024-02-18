@@ -95,7 +95,7 @@ class HuYa:
             info = 'var info = ' + re.findall(r'var hyPlayerConfig = ([\s\S]*?)};', response)[0] + '};'
             room_js = execjs.compile(info)
             if not room_js.eval(f'info.stream.vMultiStreamInfo'):
-                return '主播未开播'
+                raise Exception(f'{room_id}未开播')
             stream = 1      # choose stream
             url = room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvUrl') + '/'
             url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sStreamName') + '.'
@@ -103,8 +103,6 @@ class HuYa:
             url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvAntiCode')
         except IndexError:
             raise Exception(f'HuYa {room_id}未开播')
-        except:
-            raise Exception('HuYa - 未知错误')
         return url
 
 
