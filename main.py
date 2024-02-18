@@ -3,14 +3,15 @@
 # qn=250超清
 # qn=400蓝光
 # qn=10000原画
-from typing import Union
+
 import requests
 import webbrowser
 import os
+import re
+import execjs
 
 
 class BiliBili:
-
     def __init__(self, rid, o_qn):
         """
         有些地址无法在PotPlayer播放，建议换个播放器试试
@@ -77,6 +78,58 @@ class BiliBili:
         return stream_urls
 
 
+class HuYa:
+    def __init__(self, *args, **kwargs):
+        raise TypeError('Banned Instantiate')
+
+    @staticmethod
+    def get_real_url(room_id):
+        try:
+            room_url = 'https://m.huya.com/' + str(room_id)
+            header = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                              'Chrome/121.0.0.0 Safari/537.36'
+            }
+            response = requests.get(url=room_url, headers=header).text
+            info = 'var info = ' + re.findall(r'var hyPlayerConfig = ([\s\S]*?)};', response)[0] + '};'
+            room_js = execjs.compile(info)
+            if not room_js.eval(f'info.stream.vMultiStreamInfo'):
+                return '主播未开播'
+            stream = 1      # choose stream
+            url = room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvUrl') + '/'
+            url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sStreamName') + '.'
+            url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sHlsUrlSuffix') + '?ver=1&'
+            url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvAntiCode')
+        except IndexError:
+            raise Exception(f'HuYa {room_id}未开播')
+        except:
+            raise Exception('HuYa - 未知错误')
+        return url
+
+
+class Get:
+    def __init__(self, *args, **kwargs):
+        raise TypeError('Banned Instantiate')
+
+    @staticmethod
+    def bili_url(rid: str, qn):
+        try:
+            bilibili = BiliBili(rid, qn)
+            return bilibili.get_real_url()
+        except Exception as e:
+            print('\033[%s;40mException: \033[0m' % 31, e)
+            return False
+
+    @staticmethod
+    def huya_url(rid: str):
+        try:
+            return HuYa.get_real_url(rid)
+        except Exception as e:
+            print('\033[%s;40mException: \033[0m' % 31, e)
+            return False
+
+
 class FileManager:
     def __init__(self, *args, **kwargs):
         raise TypeError('Banned Instantiate')
@@ -127,6 +180,7 @@ class MainFunction:
             self.clear_command = "cls"
         else:
             self.clear_command = "clear"
+        self.platform = 'bilibili'
         self.func_status = None
         self.qn = 10000
         while not self.func_status:
@@ -138,8 +192,12 @@ class MainFunction:
                 self.resolution_str = '蓝光'
             elif self.qn == 10000:
                 self.resolution_str = '原画'
-            func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态\n'
-                         f'4. 更改清晰度(当前{self.resolution_str})\n5. 清屏\n6. 毁灭吧世界！\n:')
+            if self.platform == 'HuYa':
+                self.resolution_str = 'N/A'
+            func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态(bilibili)\n'
+                         f'4. 更改清晰度(当前{self.resolution_str})\n5. 更换平台，当前为{self.platform}\n'
+                         '6. 清屏\n7. 毁灭吧世界！\n'
+                         '\033[%s;40mPS : 目前虎牙不支持清晰度选择\n:\033[0m' % 33)
             try:
                 if int(func) == 1:
                     self.func_status = self.enter_id()
@@ -150,12 +208,17 @@ class MainFunction:
                 elif int(func) == 4:
                     self.func_status = self.change_bit()
                 elif int(func) == 5:
-                    os.system(self.clear_command)
+                    if self.platform == 'bilibili':
+                        self.platform = 'HuYa'
+                    else:
+                        self.platform = 'bilibili'
                 elif int(func) == 6:
-                    exit()
+                    os.system(self.clear_command)
+                elif int(func) == 7:
+                    exit(114514)
+
             except ValueError:
                 print('\033[%s;40m请输入数字！\033[0m' % 33)
-
 
     def enter_id(self) -> bool:
         self.re_choose = True
@@ -163,10 +226,10 @@ class MainFunction:
         os.system(self.clear_command)
         while self.re_choose:
             self.re_choose = False
-            r = input('请输入bilibili房间号(输入q返回上一级):')
+            r = input('请输入房间号(输入q返回上一级):')
             if r == 'q' or r == 'Q':
                 return False
-            self.status = open_potplayer(r, self.qn)
+            self.status = open_potplayer(r, self.qn, self.platform)
             if not self.status:
                 self.re_choose = True
         return True
@@ -178,17 +241,19 @@ class MainFunction:
         while self.re_choose:
             self.re_choose = False
             self.room_list = FileManager.room_list('room.txt')
-            # print('序号  备注  房间号')
-            # print('-----------------')
-            # for num, room in enumerate(self.room_list):
-            #     num = 'No.{}'.format(num)
-            #     print(num, room, self.room_list[room])
-            self.check_status()
+            if self.platform == 'HuYa':
+                print('序号  备注  房间号')
+                print('-----------------')
+                for num, room in enumerate(self.room_list):
+                    num = 'No.{}'.format(num)
+                    print(num, room, self.room_list[room])
+            elif self.platform == 'bilibili':
+                self.check_status()
             room_num = input('请输入序号加入房间(输入q返回上一级): ')
             if room_num == 'q' or room_num == 'Q':
                 return False
             try:
-                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], self.qn)
+                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], self.qn, self.platform)
             except IndexError:
                 print('\033[%s;40m序号不存在\033[0m' % 31)
             except AttributeError:
@@ -218,6 +283,7 @@ class MainFunction:
             print(num, room, self.room_list[room], self.room_status)
         print('\n')
         return False
+
     def change_bit(self):
         self.resolution = input('1. 高清\n2. 超清\n3. 蓝光\n4. 原画\n:')
         if self.resolution == '1':
@@ -231,20 +297,17 @@ class MainFunction:
         return False
 
 
-def get_real_url(rid: str, qn):
-    try:
-        bilibili = BiliBili(rid, qn)
-        return bilibili.get_real_url()
-    except Exception as e:
-        print('\033[%s;40mException: \033[0m' % 31, e)
-        return False
-
-
-def open_potplayer(room_id: str, qn) -> Union[bool]:
-    stream = get_real_url(room_id, qn)
-    if stream:
+def open_potplayer(room_id: str, qn, platform):
+    if platform == 'bilibili':
+        stream = Get.bili_url(room_id, qn)
+    elif platform == 'HuYa':
+        stream = Get.huya_url(room_id)
+    if stream and platform == 'bilibili':
         print(f'一共有{len(stream)}个源')
-        choose = input('请问要选哪个，默认第一个(输入q返回上一级): ')
+        if len(stream) > 1:
+            choose = input('请问要选哪个，默认第一个(输入q返回上一级): ')
+        else:
+            choose = 1
         if choose == 'q' or choose == 'Q':
             return False
         if choose == '':
@@ -252,10 +315,11 @@ def open_potplayer(room_id: str, qn) -> Union[bool]:
         if int(choose) > len(stream) or int(choose) <= 0:
             print('\033[47;%sm请重新选择\033[0m' % 42)
             return False
-    else:
+        stream = stream['线路{}'.format(str(choose))]
+    elif not stream:
         print('\033[47;%sm请重新选择\033[0m' % 42)
         return False
-    webbrowser.open('potplayer://{}'.format(stream['线路{}'.format(str(choose))]))
+    webbrowser.open('potplayer://{}'.format(stream))
     return True
 
 
