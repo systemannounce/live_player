@@ -6,9 +6,12 @@
 
 import requests
 import webbrowser
+import sys
 import os
 import re
 import execjs
+import shutil
+import subprocess
 
 
 class BiliBili:
@@ -171,6 +174,30 @@ class FileManager:
                     print('\033[%s;40mroom.txt 文件内存在错误，请检查是否按照规则填写。\033[0m' % 33)
                 return lines
 
+    @staticmethod
+    def resource_path(relative_path) -> str:
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        return os.path.join(base_path, relative_path)
+
+    @staticmethod
+    def fix_vlc():
+        vlc_address = input('请输入vlc安装目录（纯地址，不要包含前后引号）：')
+        vlc_fix = FileManager.resource_path('./vlc_fix/')
+        for filename in os.listdir(vlc_fix):
+            try:
+                shutil.copy(vlc_fix + filename, vlc_address)
+            except shutil.Error:
+                print(f'\033[%s;40m 文件{filename}已存在，跳过 \033[0m' % 33)
+        command = vlc_address + '/vlc-protocol-register.bat'
+        subprocess.Popen(["start", "cmd", "/k", command], shell=True)
+
+
 
 class MainFunction:
     def __init__(self) -> None:
@@ -179,6 +206,7 @@ class MainFunction:
         else:
             self.clear_command = "clear"
         self.platform = 'bilibili'
+        self.player = 'potplayer'
         self.func_status = None
         self.qn = 10000
         while not self.func_status:
@@ -194,7 +222,7 @@ class MainFunction:
                 self.resolution_str = 'N/A'
             func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态(bilibili)\n'
                          f'4. 更改清晰度(当前{self.resolution_str})\n5. 更换平台，当前为{self.platform}\n'
-                         '6. 清屏\n7. 毁灭吧世界！\n'
+                         f'6. 更换播放器，当前为{self.player}\n7. vlc无法正常调用选我修复\n8. 清屏\n9. 毁灭吧世界！\n'
                          '\033[%s;40mPS : 目前虎牙不支持清晰度选择\n:\033[0m' % 33)
             try:
                 if int(func) == 1:
@@ -211,8 +239,15 @@ class MainFunction:
                     else:
                         self.platform = 'bilibili'
                 elif int(func) == 6:
-                    os.system(self.clear_command)
+                    if self.player == 'potplayer':
+                        self.player = 'vlc'
+                    else:
+                        self.player = 'potplayer'
                 elif int(func) == 7:
+                    FileManager.fix_vlc()
+                elif int(func) == 8:
+                    os.system(self.clear_command)
+                elif int(func) == 9:
                     exit(114514)
 
             except ValueError:
@@ -227,7 +262,7 @@ class MainFunction:
             r = input('请输入房间号(输入q返回上一级):')
             if r == 'q' or r == 'Q':
                 return False
-            self.status = open_potplayer(r, self.qn, self.platform)
+            self.status = open_potplayer(r, self.qn, self.platform, self.player)
             if not self.status:
                 self.re_choose = True
         return True
@@ -251,7 +286,7 @@ class MainFunction:
             if room_num == 'q' or room_num == 'Q':
                 return False
             try:
-                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], self.qn, self.platform)
+                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], self.qn, self.platform, self.player)
             except IndexError:
                 print('\033[%s;40m序号不存在\033[0m' % 31)
             except AttributeError:
@@ -295,7 +330,7 @@ class MainFunction:
         return False
 
 
-def open_potplayer(room_id: str, qn, platform):
+def open_potplayer(room_id: str, qn, platform, player):
     if platform == 'bilibili':
         stream = Get.bili_url(room_id, qn)
     elif platform == 'HuYa':
@@ -317,7 +352,7 @@ def open_potplayer(room_id: str, qn, platform):
     elif not stream:
         print('\033[47;%sm请重新选择\033[0m' % 42)
         return False
-    webbrowser.open('potplayer://{}'.format(stream))
+    webbrowser.open(f'{player}://{stream}')
     return True
 
 
