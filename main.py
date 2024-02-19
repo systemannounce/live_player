@@ -99,7 +99,7 @@ class HuYa:
             room_js = execjs.compile(info)
             if not room_js.eval(f'info.stream.vMultiStreamInfo'):
                 raise Exception(f'{room_id}未开播')
-            stream = 1      # choose stream
+            stream = 1  # choose stream
             url = room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvUrl') + '/'
             url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sStreamName') + '.'
             url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sHlsUrlSuffix') + '?ver=1&'
@@ -202,7 +202,6 @@ class FileManager:
         subprocess.Popen(["start", "cmd", "/k", command], shell=True)
 
 
-
 class MainFunction:
     def __init__(self) -> None:
         if os.name == 'nt':
@@ -227,7 +226,7 @@ class MainFunction:
             func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态(bilibili)\n'
                          f'4. 更改清晰度(当前{self.resolution_str})\n5. 更换平台，当前为{self.platform}\n'
                          f'6. 更换播放器，当前为{self.player}\n7. vlc无法正常调用选我修复\n8. 清屏\n9. 毁灭吧世界！\n'
-                         '\033[%s;40mPS : 目前虎牙不支持清晰度选择\n:\033[0m' % 33)
+                         '\033[%s;40mPS : 目前虎牙不支持清晰度选择和开播检测\n:\033[0m' % 33)
             try:
                 if int(func) == 1:
                     self.func_status = self.enter_id()
@@ -290,7 +289,8 @@ class MainFunction:
             if room_num == 'q' or room_num == 'Q':
                 return False
             try:
-                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], self.qn, self.platform, self.player)
+                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], 
+                                             self.qn, self.platform,self.player)
             except IndexError:
                 print('\033[%s;40m序号不存在\033[0m' % 31)
             except AttributeError:
@@ -339,6 +339,8 @@ def open_potplayer(room_id: str, qn, platform, player):
         stream = Get.bili_url(room_id, qn)
     elif platform == 'HuYa':
         stream = Get.huya_url(room_id)
+    else:
+        stream = Get.bili_url(room_id, qn)
     if stream and platform == 'bilibili':
         print(f'一共有{len(stream)}个源')
         if len(stream) > 1:
