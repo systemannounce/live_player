@@ -188,12 +188,16 @@ class FileManager:
     @staticmethod
     def fix_vlc():
         vlc_address = input('请输入vlc安装目录（纯地址，不要包含前后引号）：')
-        vlc_fix = FileManager.resource_path('./vlc_fix/')
-        for filename in os.listdir(vlc_fix):
-            try:
-                shutil.copy(vlc_fix + filename, vlc_address)
-            except shutil.Error:
-                print(f'\033[%s;40m 文件{filename}已存在，跳过 \033[0m' % 33)
+        vlc_fix = FileManager.resource_path('./vlc_fixn/')
+        try:
+            for filename in os.listdir(vlc_fix):
+                try:
+                    shutil.copy(vlc_fix + filename, vlc_address)
+                except shutil.Error:
+                    print(f'\033[%s;40m 文件{filename}已存在，跳过 \033[0m' % 33)
+        except FileNotFoundError:
+            print(f'\033[%s;40m 程序目录下不存在vlc_fix文件夹，请自行去github源代码处下载 \033[0m' % 33)
+            return False
         command = vlc_address + '/vlc-protocol-register.bat'
         subprocess.Popen(["start", "cmd", "/k", command], shell=True)
 
