@@ -1,17 +1,17 @@
-# 获取哔哩哔哩直播的真实流媒体地址，默认获取直播间提供的最高画质
-# qn=150高清
-# qn=250超清
-# qn=400蓝光
-# qn=10000原画
+# 获取各个直播平台的直播源并且在本地播放器中打开。
 
-import requests
-import webbrowser
-import sys
+
+import hashlib
 import os
 import re
-import execjs
 import shutil
 import subprocess
+import sys
+import time
+import webbrowser
+
+import execjs
+import requests
 
 
 class BiliBili:
@@ -109,6 +109,74 @@ class HuYa:
         return url
 
 
+class DouYu:
+    """
+    可用来替换返回链接中的主机部分
+    两个阿里的CDN：
+    dyscdnali1.douyucdn.cn
+    dyscdnali3.douyucdn.cn
+    墙外不用带尾巴的akm cdn：
+    hls3-akm.douyucdn.cn
+    hlsa-akm.douyucdn.cn
+    hls1a-akm.douyucdn.cn
+    """
+
+    def __init__(self, rid):
+        """
+        房间号通常为1~8位纯数字，浏览器地址栏中看到的房间号不一定是真实rid.
+        Args:
+            rid:
+        """
+        self.did = '10000000000000000000000000001501'
+        self.t10 = str(int(time.time()))
+        self.t13 = str(int((time.time() * 1000)))
+
+        self.s = requests.Session()
+        self.res = self.s.get('https://m.douyu.com/' + str(rid)).text
+        result = re.search(r'rid":(\d{1,8}),"vipId', self.res)
+
+        if result:
+            self.rid = result.group(1)
+        else:
+            raise Exception(f'DouYu {rid} 房间号错误')
+
+    @staticmethod
+    def md5(data):
+        return hashlib.md5(data.encode('utf-8')).hexdigest()
+
+    def get_pc_js(self, cdn='ws-h5', rate=0):
+        """
+        通过PC网页端的接口获取完整直播源。
+        :param cdn: 主线路ws-h5、备用线路tct-h5
+        :param rate: 1流畅；2高清；3超清；4蓝光4M；0蓝光8M或10M
+        :return: JSON格式
+        """
+        res = self.s.get('https://www.douyu.com/' + str(self.rid)).text
+        result = re.search(r'(vdwdae325w_64we[\s\S]*function ub98484234[\s\S]*?)function', res).group(1)
+        func_ub9 = re.sub(r'eval.*?;}', 'strc;}', result)
+        js = execjs.compile(func_ub9)
+        res = js.call('ub98484234')
+
+        v = re.search(r'v=(\d+)', res).group(1)
+        rb = DouYu.md5(self.rid + self.did + self.t10 + v)
+
+        func_sign = re.sub(r'return rt;}\);?', 'return rt;}', res)
+        func_sign = func_sign.replace('(function (', 'function sign(')
+        func_sign = func_sign.replace('CryptoJS.MD5(cb).toString()', '"' + rb + '"')
+
+        js = execjs.compile(func_sign)
+        params = js.call('sign', self.rid, self.did, self.t10)
+
+        params += '&cdn={}&rate={}'.format(cdn, rate)
+        url = 'https://www.douyu.com/lapi/live/getH5Play/{}'.format(self.rid)
+        res = self.s.post(url, params=params).json()
+        if res['msg'] != 'ok':
+            raise Exception('房间未开播')
+        real_url = res['data']['rtmp_url'] + '/' + res['data']['rtmp_live']
+
+        return real_url
+
+
 class Get:
     def __init__(self, *args, **kwargs):
         raise TypeError('Banned Instantiate')
@@ -130,6 +198,15 @@ class Get:
             print('\033[%s;40mException: \033[0m' % 31, e)
             return False
 
+    @staticmethod
+    def douyu_url(rid: str):
+        try:
+            douyu = DouYu(rid)
+            return douyu.get_pc_js()
+        except Exception as e:
+            print('\033[%s;40mException: \033[0m' % 31, e)
+            return False
+
 
 class FileManager:
     def __init__(self, *args, **kwargs):
@@ -137,6 +214,7 @@ class FileManager:
 
     @staticmethod
     def temp_file(cookie_file):
+        # 读取文件并返回内容
         if not os.path.exists(cookie_file):
             print('\033[%s;40m没有检测到cookie文件,已经自动创建，画质将受到影响。\033[0m' % 33)
             with open(cookie_file, 'w') as f:
@@ -148,7 +226,8 @@ class FileManager:
             return cookie
 
     @staticmethod
-    def room_list(room_file):
+    def room_list(room_file) -> dict:
+        # 按照特定规则读取文件并返回字典
         lines = {}
         if not os.path.exists(room_file):
             with open(room_file, 'w', encoding='utf-8') as fp:
@@ -187,8 +266,11 @@ class FileManager:
 
     @staticmethod
     def fix_vlc():
-        vlc_address = input('请输入vlc安装目录（纯地址，不要包含前后引号）：')
-        vlc_fix = FileManager.resource_path('./vlc_fixn/')
+        # 修复vlc播放器不能使用浏览器'vlc://'协议
+        vlc_address = input('请输入vlc安装目录（纯地址，不要包含前后引号，输入q退出）：')
+        if vlc_address == 'q' or vlc_address == 'Q':
+            return False
+        vlc_fix = FileManager.resource_path('./vlc_fix/')
         try:
             for filename in os.listdir(vlc_fix):
                 try:
@@ -203,15 +285,18 @@ class FileManager:
 
 
 class MainFunction:
+    # 主功能
+
     def __init__(self) -> None:
         if os.name == 'nt':
             self.clear_command = "cls"
         else:
             self.clear_command = "clear"
+        self.platforms = ['surprise', 'bilibili', 'HuYa', 'DouYu']
         self.platform = 'bilibili'
         self.player = 'potplayer'
         self.func_status = None
-        self.qn = 10000
+        self.qn = 10000     # 清晰度
         while not self.func_status:
             if self.qn == 150:
                 self.resolution_str = '高清'
@@ -221,12 +306,12 @@ class MainFunction:
                 self.resolution_str = '蓝光'
             elif self.qn == 10000:
                 self.resolution_str = '原画'
-            if self.platform == 'HuYa':
+            if self.platform != 'bilibili':
                 self.resolution_str = 'N/A'
             func = input('1. 直接输入房间号\n2. 读取room.txt文件\n3. 测试room.txt内所有房间的状态(bilibili)\n'
                          f'4. 更改清晰度(当前{self.resolution_str})\n5. 更换平台，当前为{self.platform}\n'
                          f'6. 更换播放器，当前为{self.player}\n7. vlc无法正常调用选我修复\n8. 清屏\n9. 毁灭吧世界！\n'
-                         '\033[%s;40mPS : 目前虎牙不支持清晰度选择和开播检测\n:\033[0m' % 33)
+                         '\033[%s;40mPS : 目前虎牙和斗鱼不支持清晰度选择和开播检测\n:\033[0m' % 33)
             try:
                 if int(func) == 1:
                     self.func_status = self.enter_id()
@@ -237,10 +322,12 @@ class MainFunction:
                 elif int(func) == 4:
                     self.func_status = self.change_bit()
                 elif int(func) == 5:
-                    if self.platform == 'bilibili':
-                        self.platform = 'HuYa'
-                    else:
-                        self.platform = 'bilibili'
+                    choose = input('1. bilibili\n2. HuYa\n3. DouYu\n:')
+                    try:
+                        self.platform = self.platforms[int(choose)]
+                    except IndexError:
+                        print('\033[%s;40m超出可选范围\033[0m' % 31)
+
                 elif int(func) == 6:
                     if self.player == 'potplayer':
                         self.player = 'vlc'
@@ -257,6 +344,7 @@ class MainFunction:
                 print('\033[%s;40m请输入数字！\033[0m' % 33)
 
     def enter_id(self) -> bool:
+        # 输入房间号功能
         self.re_choose = True
         self.status = None
         os.system(self.clear_command)
@@ -271,26 +359,27 @@ class MainFunction:
         return True
 
     def exist_id(self, *args) -> bool:
+        # 读取文件功能
         self.re_choose = True
         self.status = None
         os.system(self.clear_command)
         while self.re_choose:
             self.re_choose = False
             self.room_list = FileManager.room_list('room.txt')
-            if self.platform == 'HuYa':
+            if self.platform == 'bilibili':
+                self.check_status()
+            else:
                 print('序号  备注  房间号')
                 print('-----------------')
                 for num, room in enumerate(self.room_list):
                     num = 'No.{}'.format(num)
                     print(num, room, self.room_list[room])
-            elif self.platform == 'bilibili':
-                self.check_status()
             room_num = input('请输入序号加入房间(输入q返回上一级): ')
             if room_num == 'q' or room_num == 'Q':
                 return False
             try:
-                self.status = open_potplayer(list(self.room_list.values())[int(room_num)], 
-                                             self.qn, self.platform,self.player)
+                self.status = open_potplayer(list(self.room_list.values())[int(room_num)],
+                                             self.qn, self.platform, self.player)
             except IndexError:
                 print('\033[%s;40m序号不存在\033[0m' % 31)
             except AttributeError:
@@ -303,6 +392,7 @@ class MainFunction:
         return True
 
     def check_status(self):
+        # 检查状态功能，目前只适配了bilibili
         self.room_list = FileManager.room_list('room.txt')
         print('序号  备注  房间号  状态')
         print('-----------------------')
@@ -322,6 +412,7 @@ class MainFunction:
         return False
 
     def change_bit(self):
+        # 更改清晰度，目前只有bilibili可以更改清晰度
         self.resolution = input('1. 高清\n2. 超清\n3. 蓝光\n4. 原画\n:')
         if self.resolution == '1':
             self.qn = 150
@@ -339,9 +430,11 @@ def open_potplayer(room_id: str, qn, platform, player):
         stream = Get.bili_url(room_id, qn)
     elif platform == 'HuYa':
         stream = Get.huya_url(room_id)
+    elif platform == 'DouYu':
+        stream = Get.douyu_url(room_id)
     else:
         stream = Get.bili_url(room_id, qn)
-    if stream and platform == 'bilibili':
+    if stream and platform == 'bilibili' or platform == 'surprise':
         print(f'一共有{len(stream)}个源')
         if len(stream) > 1:
             choose = input('请问要选哪个，默认第一个(输入q返回上一级): ')
@@ -359,6 +452,10 @@ def open_potplayer(room_id: str, qn, platform, player):
         print('\033[47;%sm请重新选择\033[0m' % 42)
         return False
     webbrowser.open(f'{player}://{stream}')
+    # print(f'{player}://{stream}')
+    if platform == 'DouYu':     # 斗鱼直播不稳定，显示直播源然后返回上一级
+        print(stream)
+        return False
     return True
 
 
