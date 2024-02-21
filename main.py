@@ -182,7 +182,7 @@ class Get:
         raise TypeError('Banned Instantiate')
 
     @staticmethod
-    def bili_url(rid: str, qn):
+    def bili_url(rid: str, qn) -> dict:
         try:
             bilibili = BiliBili(rid, qn)
             return bilibili.get_real_url()
@@ -191,7 +191,7 @@ class Get:
             return False
 
     @staticmethod
-    def huya_url(rid: str):
+    def huya_url(rid: str) -> str:
         try:
             return HuYa.get_real_url(rid)
         except Exception as e:
@@ -199,7 +199,7 @@ class Get:
             return False
 
     @staticmethod
-    def douyu_url(rid: str):
+    def douyu_url(rid: str) -> str:
         try:
             douyu = DouYu(rid)
             return douyu.get_pc_js()
@@ -296,7 +296,7 @@ class MainFunction:
         self.platform = 'bilibili'
         self.player = 'potplayer'
         self.func_status = None
-        self.qn = 10000     # 清晰度
+        self.qn = 10000  # 清晰度
         while not self.func_status:
             if self.qn == 150:
                 self.resolution_str = '高清'
@@ -434,7 +434,8 @@ def open_potplayer(room_id: str, qn, platform, player):
         stream = Get.douyu_url(room_id)
     else:
         stream = Get.bili_url(room_id, qn)
-    if stream and platform == 'bilibili' or platform == 'surprise':
+
+    if stream and type(stream) is dict:
         print(f'一共有{len(stream)}个源')
         if len(stream) > 1:
             choose = input('请问要选哪个，默认第一个(输入q返回上一级): ')
@@ -453,7 +454,7 @@ def open_potplayer(room_id: str, qn, platform, player):
         return False
     webbrowser.open(f'{player}://{stream}')
     # print(f'{player}://{stream}')
-    if platform == 'DouYu':     # 斗鱼直播不稳定，显示直播源然后返回上一级
+    if platform == 'DouYu':  # 斗鱼直播不稳定，显示直播源然后返回上一级
         print(stream)
         return False
     return True
