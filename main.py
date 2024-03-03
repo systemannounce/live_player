@@ -102,7 +102,7 @@ class HuYa:
             stream = 1  # choose stream
             url = room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvUrl') + '/'
             url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sStreamName') + '.'
-            url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sHlsUrlSuffix') + '?ver=1&'
+            url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvUrlSuffix') + '?ver=1&'
             url = url + room_js.eval(f'info.stream.data[0].gameStreamInfoList[{stream}].sFlvAntiCode')
         except IndexError:
             raise Exception(f'HuYa {room_id}未开播')
@@ -438,13 +438,13 @@ def open_potplayer(room_id: str, qn, platform, player):
     if stream and type(stream) is dict:
         print(f'一共有{len(stream)}个源')
         if len(stream) > 1:
-            choose = input('请问要选哪个，默认第一个(输入q返回上一级): ')
+            choose = input('请问要选哪个，默认最后一个(输入q返回上一级): ')
         else:
-            choose = 1
+            choose = len(stream)
         if choose == 'q' or choose == 'Q':
             return False
         if choose == '':
-            choose = 1
+            choose = len(stream)
         if int(choose) > len(stream) or int(choose) <= 0:
             print('\033[47;%sm请重新选择\033[0m' % 42)
             return False
